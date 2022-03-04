@@ -113,38 +113,60 @@ namespace Quickstarts.EmptyServer
             PropertyState property = new PropertyState(baseObj);
             property.NodeId = new NodeId(idx.ToString() + "-" + name, NamespaceIndex);
             property.BrowseName = new QualifiedName(name, NamespaceIndex);
-            property.DisplayName = property.BrowseName.Name;
+            property.DisplayName = baseObj.BrowseName.Name + "-" + name;
+            property.Description = "";
             property.TypeDefinitionId = VariableTypeIds.PropertyType;
             property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             property.DataType = type;
             property.Value = value;
             property.ValueRank = ValueRanks.Scalar;
+            property.OnReadValue = OnReadRecord;
             baseObj.AddChild(property);
             return property;
         }
 
-	    private ServiceResult OnReadRecord(ISystemContext context, NodeState node,
+        private ServiceResult OnReadRecord(ISystemContext context, NodeState node,
             NumericRange indexRange, QualifiedName dataEncoding,
             ref object value, ref StatusCode statusCode, ref DateTime timestamp)
         {
             uint parentId = (uint)((PropertyState)node).Parent.NodeId.Identifier;
-            OleDbConnection conn = new OleDbConnection(connStr);
-            conn.Open();
-            string sql = String.Format(
-                "SELECT TOP 1 * FROM tblRecord WHERE EquipmentID = {0} ORDER BY clTime DESC",
-                parentId);
-            OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-            DataSet ds = new DataSet();
-            adapter.Fill(ds);
-            conn.Close();
-            DataTableReader dr = ds.CreateDataReader();
-            while (dr.Read())
-            {
-                value = dr["clValue"];
-                break;
-            }
+            if (!equipments.ContainsKey(parentId))
+                return ServiceResult.Good;
 
+            value = equipments[parentId][node.BrowseName.Name];
+            timestamp = DateTime.Now;
             return ServiceResult.Good;
+
+        }
+
+        private void ReadDb()
+        {
+            try
+            {
+                while (true)
+                {
+                    OleDbConnection conn = new OleDbConnection(connStr);
+                    conn.Open();
+                    string sql = String.Format(
+                        "SELECT TOP 100 * FROM tblRecord ORDER BY clTime DESC");
+                    OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                    DataSet ds = new DataSet();
+                    adapter.Fill(ds);
+                    conn.Close();
+                    DataTableReader dr = ds.CreateDataReader();
+                    while (dr.Read())
+                    {
+                        uint id = uint.Parse(dr["EquipmentID"].ToString());
+                        equipments[id]["Value"] = dr["clValue"];
+                        equipments[id]["TimeStamp"] = dr["clTime"];
+                    }
+                    System.Threading.Thread.Sleep(60 * 1000);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         private void tianyu_init(IDictionary<NodeId, IList<IReference>> externalReferences)
@@ -162,20 +184,36 @@ namespace Quickstarts.EmptyServer
                 while (dr.Read())
                 {
                     uint idx = uint.Parse(dr["ID"].ToString());
-                    string name = dr["Name"].ToString();
+
                     BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
-                    AddProperty(baseObj, idx, name + "-ID", DataTypeIds.Int32, int.Parse(dr["ID"].ToString()));
-                    AddProperty(baseObj, idx, name + "-Name", DataTypeIds.String, dr["Name"].ToString());
-                    AddProperty(baseObj, idx, name + "-Address", DataTypeIds.String, dr["Address"].ToString());
-                    AddProperty(baseObj, idx, name + "-MinValue", DataTypeIds.Float, float.Parse(dr["MinValue"].ToString()));
-                    AddProperty(baseObj, idx, name + "-MaxValue", DataTypeIds.Float, float.Parse(dr["MaxValue"].ToString()));
-                    AddProperty(baseObj, idx, name + "-UpperLimit", DataTypeIds.Float, float.Parse(dr["UpperLimit"].ToString()));
-                    AddProperty(baseObj, idx, name + "-LowerLimit", DataTypeIds.Float, float.Parse(dr["LowerLimit"].ToString()));
-                    AddProperty(baseObj, idx, name + "-State", DataTypeIds.Int32, int.Parse(dr["State"].ToString()));
-                    var record = AddProperty(baseObj, idx, name + "-Record", DataTypeIds.Float, 0);
-                    record.OnReadValue = OnReadRecord;
+                    AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
+                    AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
+                    AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
+                    AddProperty(baseObj, idx, "MinValue", DataTypeIds.Double, dr["MinValue"]);
+                    AddProperty(baseObj, idx, "MaxValue", DataTypeIds.Double, dr["MaxValue"]);
+                    AddProperty(baseObj, idx, "UpperLimit", DataTypeIds.Double, dr["UpperLimit"]);
+                    AddProperty(baseObj, idx, "LowerLimit", DataTypeIds.Double, dr["LowerLimit"]);
+                    AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
+                    AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
+                    AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
                     AddPredefinedNode(SystemContext, baseObj);
+
+                    Dictionary<string, object> equipment = new Dictionary<string, object>();
+                    equipment.Add("ID", dr["ID"]);
+                    equipment.Add("Name", dr["Name"]);
+                    equipment.Add("Address", dr["Address"]);
+                    equipment.Add("MinValue", dr["MinValue"]);
+                    equipment.Add("MaxValue", dr["MaxValue"]);
+                    equipment.Add("UpperLimit", dr["UpperLimit"]);
+                    equipment.Add("LowerLimit", dr["LowerLimit"]);
+                    equipment.Add("State", dr["State"]);
+                    equipment.Add("Value", 0);
+                    equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                    equipments.Add(idx, equipment);
                 }
+
+                equipments_thread = new Thread(() => { ReadDb(); });
+                equipments_thread.Start();
             }
             catch (Exception ex)
             {
@@ -261,6 +299,7 @@ namespace Quickstarts.EmptyServer
             lock (Lock)
             {
                 // TBD
+                equipments_thread.Abort();
             }
         }
 
@@ -325,7 +364,11 @@ namespace Quickstarts.EmptyServer
 
         #region Private Fields
         private EmptyServerConfiguration m_configuration;
-        private String connStr = @"Provider=SQLOLEDB;Data Source = 172.16.177.129;User ID = sa;Password=123456;Initial Catalog = ehs";
+        private String connStr = @"Provider=SQLOLEDB;Data Source = 192.168.56.128;User ID = sa;Password=123456;Initial Catalog = ehs";
+        private Dictionary<uint, Dictionary<string, object>> equipments =
+            new Dictionary<uint, Dictionary<string, object>>();
+        private object equipments_lock;
+        private Thread equipments_thread;
         #endregion
     }
 }
