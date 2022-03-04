@@ -145,22 +145,67 @@ namespace Quickstarts.EmptyServer
             {
                 while (true)
                 {
-                    OleDbConnection conn = new OleDbConnection(connStr);
-                    conn.Open();
-                    string sql = String.Format(
-                        "SELECT TOP 100 * FROM tblRecord ORDER BY clTime DESC");
-                    OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                    DataSet ds = new DataSet();
-                    adapter.Fill(ds);
-                    conn.Close();
-                    DataTableReader dr = ds.CreateDataReader();
-                    while (dr.Read())
+                    // Query Record
                     {
-                        uint id = uint.Parse(dr["EquipmentID"].ToString());
-                        equipments[id]["Value"] = dr["clValue"];
-                        equipments[id]["TimeStamp"] = dr["clTime"];
+                        OleDbConnection conn = new OleDbConnection(connStr);
+                        conn.Open();
+                        string sql = String.Format(
+                            "SELECT TOP 1000 * FROM tblRecord ORDER BY ID DESC");
+                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                        DataSet ds = new DataSet();
+                        adapter.Fill(ds);
+                        conn.Close();
+                        DataTableReader dr = ds.CreateDataReader();
+                        while (dr.Read())
+                        {
+                            uint id = uint.Parse(dr["EquipmentID"].ToString());
+                            equipments[id]["Value"] = dr["clValue"];
+                            equipments[id]["TimeStamp"] = dr["clTime"];
+                        }
                     }
-                    System.Threading.Thread.Sleep(60 * 1000);
+
+                    // Query Abnormity 
+                    {
+                        OleDbConnection conn = new OleDbConnection(connStr);
+                        conn.Open();
+                        string sql = String.Format(
+                            "SELECT TOP 1000 * FROM tblAbnormity ORDER BY ID DESC");
+                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                        DataSet ds = new DataSet();
+                        adapter.Fill(ds);
+                        conn.Close();
+                        DataTableReader dr = ds.CreateDataReader();
+                        while (dr.Read())
+                        {
+                            uint id = uint.Parse(dr["EquipmentID"].ToString());
+                            equipments[id]["AbnormityStatus"] = dr["Status"];
+                            equipments[id]["AbnormityValue"] = dr["MaxValue"];
+                        }
+                    }
+
+                    // Query Equipment
+                    {
+                        OleDbConnection conn = new OleDbConnection(connStr);
+                        conn.Open();
+                        string sql = String.Format("SELECT * FROM tblEquipment");
+                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                        DataSet ds = new DataSet();
+                        adapter.Fill(ds);
+                        conn.Close();
+                        DataTableReader dr = ds.CreateDataReader();
+                        while (dr.Read())
+                        {
+                            uint id = uint.Parse(dr["ID"].ToString());
+                            equipments[id]["Address"] = dr["Address"];
+                            equipments[id]["MinValue"] = dr["MinValue"];
+                            equipments[id]["MaxValue"] = dr["MaxValue"];
+                            equipments[id]["UpperLimit"] = dr["UpperLimit"];
+                            equipments[id]["LowerLimit"] = dr["LowerLimit"];
+                            equipments[id]["State"] = dr["State"];
+                        }
+                    }
+
+                    System.Threading.Thread.Sleep(20 * 1000);
                 }
             }
             catch (Exception ex)
@@ -196,6 +241,8 @@ namespace Quickstarts.EmptyServer
                     AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
                     AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
                     AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                    AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
+                    AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
                     AddPredefinedNode(SystemContext, baseObj);
 
                     Dictionary<string, object> equipment = new Dictionary<string, object>();
@@ -209,6 +256,8 @@ namespace Quickstarts.EmptyServer
                     equipment.Add("State", dr["State"]);
                     equipment.Add("Value", 0);
                     equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                    equipment.Add("AbnormityStatus", "");
+                    equipment.Add("AbnormityValue", 0);
                     equipments.Add(idx, equipment);
                 }
 
