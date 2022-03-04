@@ -37,6 +37,8 @@ using System.Threading;
 using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System.Data;
+using System.Data.OleDb;
 
 namespace Quickstarts.EmptyServer
 {
@@ -88,6 +90,98 @@ namespace Quickstarts.EmptyServer
             return node.NodeId;
         }
         #endregion
+
+        private BaseObjectState AddObject(
+            IDictionary<NodeId, IList<IReference>> externalReferences, uint idx, string name)
+        {
+            BaseObjectState equipment = new BaseObjectState(null);
+            equipment.NodeId = new NodeId(idx, NamespaceIndex);
+            equipment.BrowseName = new QualifiedName(name, NamespaceIndex);
+            equipment.DisplayName = equipment.BrowseName.Name;
+            equipment.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+            IList<IReference> references = null;
+            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out references))
+                externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
+            equipment.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, equipment.NodeId));
+            return equipment;
+        }
+
+        private PropertyState AddProperty(BaseObjectState baseObj,
+            uint idx, string name, NodeId type, object value)
+        {
+            PropertyState property = new PropertyState(baseObj);
+            property.NodeId = new NodeId(idx.ToString() + "-" + name, NamespaceIndex);
+            property.BrowseName = new QualifiedName(name, NamespaceIndex);
+            property.DisplayName = property.BrowseName.Name;
+            property.TypeDefinitionId = VariableTypeIds.PropertyType;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            property.DataType = type;
+            property.Value = value;
+            property.ValueRank = ValueRanks.Scalar;
+            baseObj.AddChild(property);
+            return property;
+        }
+
+	    private ServiceResult OnReadRecord(ISystemContext context, NodeState node,
+            NumericRange indexRange, QualifiedName dataEncoding,
+            ref object value, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            uint parentId = (uint)((PropertyState)node).Parent.NodeId.Identifier;
+            OleDbConnection conn = new OleDbConnection(connStr);
+            conn.Open();
+            string sql = String.Format(
+                "SELECT TOP 1 * FROM tblRecord WHERE EquipmentID = {0} ORDER BY clTime DESC",
+                parentId);
+            OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+            DataSet ds = new DataSet();
+            adapter.Fill(ds);
+            conn.Close();
+            DataTableReader dr = ds.CreateDataReader();
+            while (dr.Read())
+            {
+                value = dr["clValue"];
+                break;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private void tianyu_init(IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            try
+            {
+                OleDbConnection conn = new OleDbConnection(connStr);
+                conn.Open();
+                OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
+                DataSet ds = new DataSet();
+                adapter.Fill(ds);
+                conn.Close();
+
+                DataTableReader dr = ds.CreateDataReader();
+                while (dr.Read())
+                {
+                    uint idx = uint.Parse(dr["ID"].ToString());
+                    string name = dr["Name"].ToString();
+                    BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
+                    AddProperty(baseObj, idx, name + "-ID", DataTypeIds.Int32, int.Parse(dr["ID"].ToString()));
+                    AddProperty(baseObj, idx, name + "-Name", DataTypeIds.String, dr["Name"].ToString());
+                    AddProperty(baseObj, idx, name + "-Address", DataTypeIds.String, dr["Address"].ToString());
+                    AddProperty(baseObj, idx, name + "-MinValue", DataTypeIds.Float, float.Parse(dr["MinValue"].ToString()));
+                    AddProperty(baseObj, idx, name + "-MaxValue", DataTypeIds.Float, float.Parse(dr["MaxValue"].ToString()));
+                    AddProperty(baseObj, idx, name + "-UpperLimit", DataTypeIds.Float, float.Parse(dr["UpperLimit"].ToString()));
+                    AddProperty(baseObj, idx, name + "-LowerLimit", DataTypeIds.Float, float.Parse(dr["LowerLimit"].ToString()));
+                    AddProperty(baseObj, idx, name + "-State", DataTypeIds.Int32, int.Parse(dr["State"].ToString()));
+                    var record = AddProperty(baseObj, idx, name + "-Record", DataTypeIds.Float, 0);
+                    record.OnReadValue = OnReadRecord;
+                    AddPredefinedNode(SystemContext, baseObj);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
 
         #region INodeManager Members
         /// <summary>
@@ -154,6 +248,8 @@ namespace Quickstarts.EmptyServer
 
                 // save in dictionary. 
                 AddPredefinedNode(SystemContext, referenceType);
+
+                tianyu_init(externalReferences);
             } 
         }
 
@@ -229,6 +325,7 @@ namespace Quickstarts.EmptyServer
 
         #region Private Fields
         private EmptyServerConfiguration m_configuration;
+        private String connStr = @"Provider=SQLOLEDB;Data Source = 172.16.177.129;User ID = sa;Password=123456;Initial Catalog = ehs";
         #endregion
     }
 }
