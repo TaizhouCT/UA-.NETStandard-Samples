@@ -223,6 +223,8 @@ namespace Quickstarts.EmptyServer
                         while (dr.Read())
                         {
                             uint id = uint.Parse(dr["ID"].ToString());
+                            if (!equipments.ContainsKey(id))
+                                continue;
                             equipments[id]["Address"] = dr["Address"];
                             equipments[id]["MinValue"] = dr["MinValue"];
                             equipments[id]["MaxValue"] = dr["MaxValue"];
@@ -300,6 +302,7 @@ namespace Quickstarts.EmptyServer
             catch (Exception ex)
             {
                 log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                Environment.Exit(Environment.ExitCode);
             }
         }
 
