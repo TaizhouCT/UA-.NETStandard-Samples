@@ -104,13 +104,14 @@ namespace Quickstarts.EmptyServer
                 XmlDocument xdoc = new XmlDocument();
                 xdoc.Load(CONF_PATH);
 
-                XmlNode node = xdoc.SelectSingleNode("/configuration/sqlserver");
-                connStr = node.Attributes["connstr"].Value;
+                connStr = xdoc.SelectSingleNode("/configuration/sqlserver/connString")
+                    .Attributes["value"].Value;
+                queryInterval = int.Parse(xdoc.SelectSingleNode("/configuration/sqlserver/queryInterval")
+                    .Attributes["value"].Value);
             }
             catch (Exception ex)
             {
-                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
-                    .Error("error when parsing config file.", ex);
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
                 Environment.Exit(Environment.ExitCode);
             }
         }
@@ -169,6 +170,8 @@ namespace Quickstarts.EmptyServer
             {
                 while (true)
                 {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Start updating db cache ...");
                     // Query Record
                     {
                         OleDbConnection conn = new OleDbConnection(connStr);
@@ -229,13 +232,14 @@ namespace Quickstarts.EmptyServer
                         }
                     }
 
-                    System.Threading.Thread.Sleep(20 * 1000);
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Update db cached successed!");
+                    System.Threading.Thread.Sleep(queryInterval * 1000);
                 }
             }
             catch (Exception ex)
             {
-                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
-                    .Error("ReadDB()", ex);
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
             }
         }
 
@@ -243,12 +247,16 @@ namespace Quickstarts.EmptyServer
         {
             try
             {
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Start connectting to sqlserver ...");
                 OleDbConnection conn = new OleDbConnection(connStr);
                 conn.Open();
                 OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
                 DataSet ds = new DataSet();
                 adapter.Fill(ds);
                 conn.Close();
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Connect to sqlserver successed!");
 
                 DataTableReader dr = ds.CreateDataReader();
                 while (dr.Read())
@@ -291,8 +299,7 @@ namespace Quickstarts.EmptyServer
             }
             catch (Exception ex)
             {
-                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
-                    .Error("tianyu_init()", ex);
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
             }
         }
 
@@ -442,6 +449,7 @@ namespace Quickstarts.EmptyServer
         private EmptyServerConfiguration m_configuration;
         private static readonly string CONF_PATH = AppDomain.CurrentDomain.BaseDirectory + "tianyu_opc.xml";
         private String connStr = @"Provider=SQLOLEDB;Data Source = 127.0.0.1;User ID = sa;Password=123456;Initial Catalog = ehs";
+        private int queryInterval = 30;
         private Dictionary<uint, Dictionary<string, object>> equipments =
             new Dictionary<uint, Dictionary<string, object>>();
         private object equipments_lock;

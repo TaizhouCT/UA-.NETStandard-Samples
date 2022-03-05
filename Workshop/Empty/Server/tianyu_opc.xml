@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
-  <sqlserver connstr="Provider=SQLOLEDB;Data Source = 192.168.0.101;User ID = sa;Password=;Initial Catalog = EHS" />
+    <sqlserver>
+      <connString value="Provider=SQLOLEDB;Data Source = 192.168.0.101;User ID = sa;Password=;Initial Catalog = EHS" />
+      <queryInterval value="30" />
+    </sqlserver>
 
   <configSections>
     <section name="log4net" type="log4net.Config.Log4NetConfigurationSectionHandler, log4net"/>
