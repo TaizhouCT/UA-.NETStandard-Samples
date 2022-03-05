@@ -145,6 +145,7 @@ namespace Quickstarts.EmptyServer
             property.DataType = type;
             property.Value = value;
             property.ValueRank = ValueRanks.Scalar;
+            //property.AccessLevel = AccessLevels.CurrentReadOrWrite;
             property.OnReadValue = OnReadRecord;
             baseObj.AddChild(property);
             return property;
@@ -161,9 +162,7 @@ namespace Quickstarts.EmptyServer
             value = equipments[parentId][node.BrowseName.Name];
             timestamp = DateTime.Now;
             return ServiceResult.Good;
-
         }
-
 
         private void QueryEquipment(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -195,7 +194,7 @@ namespace Quickstarts.EmptyServer
                     }
                     else
                     {
-                        //lock (Lock)
+                        lock (Lock)
                         {
                             BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
                             AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
@@ -211,21 +210,23 @@ namespace Quickstarts.EmptyServer
                             AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
                             AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
                             AddPredefinedNode(SystemContext, baseObj);
+
+                            Dictionary<string, object> equipment = new Dictionary<string, object>();
+                            equipment.Add("ID", dr["ID"]);
+                            equipment.Add("Name", dr["Name"]);
+                            equipment.Add("Address", dr["Address"]);
+                            equipment.Add("MinValue", dr["MinValue"]);
+                            equipment.Add("MaxValue", dr["MaxValue"]);
+                            equipment.Add("UpperLimit", dr["UpperLimit"]);
+                            equipment.Add("LowerLimit", dr["LowerLimit"]);
+                            equipment.Add("State", dr["State"]);
+                            equipment.Add("Value", 0);
+                            equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                            equipment.Add("AbnormityStatus", "");
+                            equipment.Add("AbnormityValue", 0);
+                            equipment.Add("_backend_node", baseObj);
+                            equipments.Add(idx, equipment);
                         }
-                        Dictionary<string, object> equipment = new Dictionary<string, object>();
-                        equipment.Add("ID", dr["ID"]);
-                        equipment.Add("Name", dr["Name"]);
-                        equipment.Add("Address", dr["Address"]);
-                        equipment.Add("MinValue", dr["MinValue"]);
-                        equipment.Add("MaxValue", dr["MaxValue"]);
-                        equipment.Add("UpperLimit", dr["UpperLimit"]);
-                        equipment.Add("LowerLimit", dr["LowerLimit"]);
-                        equipment.Add("State", dr["State"]);
-                        equipment.Add("Value", 0);
-                        equipment.Add("TimeStamp", new DateTime(1, 1, 1));
-                        equipment.Add("AbnormityStatus", "");
-                        equipment.Add("AbnormityValue", 0);
-                        equipments.Add(idx, equipment);
                     }
                 }
 
@@ -235,6 +236,7 @@ namespace Quickstarts.EmptyServer
             catch (Exception ex)
             {
                 log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                Environment.Exit(Environment.ExitCode);
             }
         }
 
@@ -261,6 +263,21 @@ namespace Quickstarts.EmptyServer
                     {
                         equipments[idx]["Value"] = dr["clValue"];
                         equipments[idx]["TimeStamp"] = dr["clTime"];
+
+                        lock (Lock)
+                        {
+                            BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
+                            PropertyState value = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("Value", baseObj.BrowseName.NamespaceIndex));
+                            value.Value = dr["clValue"];
+                            value.Timestamp = DateTime.Now;
+                            value.ClearChangeMasks(SystemContext, false);
+                            PropertyState ts = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("TimeStamp", baseObj.BrowseName.NamespaceIndex));
+                            ts.Value = dr["clTime"];
+                            ts.Timestamp = DateTime.Now;
+                            ts.ClearChangeMasks(SystemContext, false);
+                        }
                     }
                 }
 
@@ -296,6 +313,21 @@ namespace Quickstarts.EmptyServer
                     {
                         equipments[idx]["AbnormityStatus"] = dr["Status"];
                         equipments[idx]["AbnormityValue"] = dr["MaxValue"];
+
+                        lock (Lock)
+                        {
+                            BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
+                            PropertyState status = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("AbnormityStatus", baseObj.BrowseName.NamespaceIndex));
+                            status.Value = dr["Status"];
+                            status.Timestamp = DateTime.Now;
+                            status.ClearChangeMasks(SystemContext, false);
+                            PropertyState value = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("AbnormityValue", baseObj.BrowseName.NamespaceIndex));
+                            value.Value = dr["MaxValue"];
+                            value.Timestamp = DateTime.Now;
+                            value.ClearChangeMasks(SystemContext, false);
+                        }
                     }
                 }
 
