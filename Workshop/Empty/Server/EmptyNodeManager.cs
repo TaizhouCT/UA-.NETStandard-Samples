@@ -164,80 +164,73 @@ namespace Quickstarts.EmptyServer
 
         }
 
-        private void ReadDb()
+
+        private void QueryEquipment(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             try
             {
-                while (true)
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Start query Equipment!");
+
+                OleDbConnection conn = new OleDbConnection(connStr);
+                conn.Open();
+                OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
+                DataSet ds = new DataSet();
+                adapter.Fill(ds);
+                conn.Close();
+
+                DataTableReader dr = ds.CreateDataReader();
+                while (dr.Read())
                 {
-                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                        .Info("Start updating db cache ...");
-                    // Query Record
-                    {
-                        OleDbConnection conn = new OleDbConnection(connStr);
-                        conn.Open();
-                        string sql = String.Format(
-                            "SELECT TOP 1000 * FROM tblRecord ORDER BY ID DESC");
-                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                        DataSet ds = new DataSet();
-                        adapter.Fill(ds);
-                        conn.Close();
-                        DataTableReader dr = ds.CreateDataReader();
-                        while (dr.Read())
-                        {
-                            uint id = uint.Parse(dr["EquipmentID"].ToString());
-                            equipments[id]["Value"] = dr["clValue"];
-                            equipments[id]["TimeStamp"] = dr["clTime"];
-                        }
-                    }
+                    uint idx = uint.Parse(dr["ID"].ToString());
 
-                    // Query Abnormity 
+                    if (equipments.ContainsKey(idx))
                     {
-                        OleDbConnection conn = new OleDbConnection(connStr);
-                        conn.Open();
-                        string sql = String.Format(
-                            "SELECT TOP 1000 * FROM tblAbnormity ORDER BY ID DESC");
-                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                        DataSet ds = new DataSet();
-                        adapter.Fill(ds);
-                        conn.Close();
-                        DataTableReader dr = ds.CreateDataReader();
-                        while (dr.Read())
-                        {
-                            uint id = uint.Parse(dr["EquipmentID"].ToString());
-                            equipments[id]["AbnormityStatus"] = dr["Status"];
-                            equipments[id]["AbnormityValue"] = dr["MaxValue"];
-                        }
+                        equipments[idx]["Address"] = dr["Address"];
+                        equipments[idx]["MinValue"] = dr["MinValue"];
+                        equipments[idx]["MaxValue"] = dr["MaxValue"];
+                        equipments[idx]["UpperLimit"] = dr["UpperLimit"];
+                        equipments[idx]["LowerLimit"] = dr["LowerLimit"];
+                        equipments[idx]["State"] = dr["State"];
                     }
-
-                    // Query Equipment
+                    else
                     {
-                        OleDbConnection conn = new OleDbConnection(connStr);
-                        conn.Open();
-                        string sql = String.Format("SELECT * FROM tblEquipment");
-                        OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                        DataSet ds = new DataSet();
-                        adapter.Fill(ds);
-                        conn.Close();
-                        DataTableReader dr = ds.CreateDataReader();
-                        while (dr.Read())
+                        //lock (Lock)
                         {
-                            uint id = uint.Parse(dr["ID"].ToString());
-                            if (!equipments.ContainsKey(id))
-                                continue;
-                            equipments[id]["Address"] = dr["Address"];
-                            equipments[id]["MinValue"] = dr["MinValue"];
-                            equipments[id]["MaxValue"] = dr["MaxValue"];
-                            equipments[id]["UpperLimit"] = dr["UpperLimit"];
-                            equipments[id]["LowerLimit"] = dr["LowerLimit"];
-                            equipments[id]["State"] = dr["State"];
+                            BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
+                            AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
+                            AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
+                            AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
+                            AddProperty(baseObj, idx, "MinValue", DataTypeIds.Double, dr["MinValue"]);
+                            AddProperty(baseObj, idx, "MaxValue", DataTypeIds.Double, dr["MaxValue"]);
+                            AddProperty(baseObj, idx, "UpperLimit", DataTypeIds.Double, dr["UpperLimit"]);
+                            AddProperty(baseObj, idx, "LowerLimit", DataTypeIds.Double, dr["LowerLimit"]);
+                            AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
+                            AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
+                            AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                            AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
+                            AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
+                            AddPredefinedNode(SystemContext, baseObj);
                         }
+                        Dictionary<string, object> equipment = new Dictionary<string, object>();
+                        equipment.Add("ID", dr["ID"]);
+                        equipment.Add("Name", dr["Name"]);
+                        equipment.Add("Address", dr["Address"]);
+                        equipment.Add("MinValue", dr["MinValue"]);
+                        equipment.Add("MaxValue", dr["MaxValue"]);
+                        equipment.Add("UpperLimit", dr["UpperLimit"]);
+                        equipment.Add("LowerLimit", dr["LowerLimit"]);
+                        equipment.Add("State", dr["State"]);
+                        equipment.Add("Value", 0);
+                        equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                        equipment.Add("AbnormityStatus", "");
+                        equipment.Add("AbnormityValue", 0);
+                        equipments.Add(idx, equipment);
                     }
-
-                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                        .Info("Update db cached successed!");
-                    System.Threading.Thread.Sleep(queryInterval * 1000);
                 }
+
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Query equipment successed!");
             }
             catch (Exception ex)
             {
@@ -245,64 +238,90 @@ namespace Quickstarts.EmptyServer
             }
         }
 
-        private void tianyu_init(IDictionary<NodeId, IList<IReference>> externalReferences)
+        private void QueryRecord()
         {
             try
             {
                 log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Start connectting to sqlserver ...");
+                    .Info("Start query Record!");
+
                 OleDbConnection conn = new OleDbConnection(connStr);
                 conn.Open();
-                OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
+                string sql = String.Format(
+                    "SELECT TOP 1000 * FROM tblRecord ORDER BY ID DESC");
+                OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
                 DataSet ds = new DataSet();
                 adapter.Fill(ds);
                 conn.Close();
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Connect to sqlserver successed!");
-
                 DataTableReader dr = ds.CreateDataReader();
                 while (dr.Read())
                 {
-                    uint idx = uint.Parse(dr["ID"].ToString());
-
-                    BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
-                    AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
-                    AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
-                    AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
-                    AddProperty(baseObj, idx, "MinValue", DataTypeIds.Double, dr["MinValue"]);
-                    AddProperty(baseObj, idx, "MaxValue", DataTypeIds.Double, dr["MaxValue"]);
-                    AddProperty(baseObj, idx, "UpperLimit", DataTypeIds.Double, dr["UpperLimit"]);
-                    AddProperty(baseObj, idx, "LowerLimit", DataTypeIds.Double, dr["LowerLimit"]);
-                    AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
-                    AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
-                    AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
-                    AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
-                    AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
-                    AddPredefinedNode(SystemContext, baseObj);
-
-                    Dictionary<string, object> equipment = new Dictionary<string, object>();
-                    equipment.Add("ID", dr["ID"]);
-                    equipment.Add("Name", dr["Name"]);
-                    equipment.Add("Address", dr["Address"]);
-                    equipment.Add("MinValue", dr["MinValue"]);
-                    equipment.Add("MaxValue", dr["MaxValue"]);
-                    equipment.Add("UpperLimit", dr["UpperLimit"]);
-                    equipment.Add("LowerLimit", dr["LowerLimit"]);
-                    equipment.Add("State", dr["State"]);
-                    equipment.Add("Value", 0);
-                    equipment.Add("TimeStamp", new DateTime(1, 1, 1));
-                    equipment.Add("AbnormityStatus", "");
-                    equipment.Add("AbnormityValue", 0);
-                    equipments.Add(idx, equipment);
+                    uint idx = uint.Parse(dr["EquipmentID"].ToString());
+                    if (equipments.ContainsKey(idx))
+                    {
+                        equipments[idx]["Value"] = dr["clValue"];
+                        equipments[idx]["TimeStamp"] = dr["clTime"];
+                    }
                 }
 
-                equipments_thread = new Thread(() => { ReadDb(); });
-                equipments_thread.Start();
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Query record successed!");
             }
             catch (Exception ex)
             {
                 log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
-                Environment.Exit(Environment.ExitCode);
+            }
+        }
+
+        private void QueryAbnormity()
+        {
+            try
+            {
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Start Query Abnormity!");
+
+                OleDbConnection conn = new OleDbConnection(connStr);
+                conn.Open();
+                string sql = String.Format(
+                    "SELECT TOP 1000 * FROM tblAbnormity ORDER BY ID DESC");
+                OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                DataSet ds = new DataSet();
+                adapter.Fill(ds);
+                conn.Close();
+                DataTableReader dr = ds.CreateDataReader();
+                while (dr.Read())
+                {
+                    uint idx = uint.Parse(dr["EquipmentID"].ToString());
+                    if (equipments.ContainsKey(idx))
+                    {
+                        equipments[idx]["AbnormityStatus"] = dr["Status"];
+                        equipments[idx]["AbnormityValue"] = dr["MaxValue"];
+                    }
+                }
+
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                    .Info("Query Abnormity successed!");
+            }
+            catch (Exception ex)
+            {
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+            }
+        }
+
+        private void ReadDb()
+        {
+            try
+            {
+                while (true)
+                {
+                    QueryRecord();
+                    QueryAbnormity();
+                    System.Threading.Thread.Sleep(queryInterval * 1000);
+                }
+            }
+            catch (Exception ex)
+            {
+                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
             }
         }
 
@@ -373,7 +392,9 @@ namespace Quickstarts.EmptyServer
                 //AddPredefinedNode(SystemContext, referenceType);
 
                 InitConfig();
-                tianyu_init(externalReferences);
+                QueryEquipment(externalReferences);
+                equipments_thread = new Thread(() => { ReadDb(); });
+                equipments_thread.Start();
             } 
         }
 
