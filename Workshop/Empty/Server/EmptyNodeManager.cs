@@ -91,6 +91,30 @@ namespace Quickstarts.EmptyServer
         }
         #endregion
 
+        private void InitConfig()
+        {
+            if (!System.IO.File.Exists(CONF_PATH))
+                Environment.Exit(Environment.ExitCode);
+
+            var config = new System.IO.FileInfo(CONF_PATH);
+            log4net.Config.XmlConfigurator.Configure(config);
+
+            try
+            {
+                XmlDocument xdoc = new XmlDocument();
+                xdoc.Load(CONF_PATH);
+
+                XmlNode node = xdoc.SelectSingleNode("/configuration/sqlserver");
+                connStr = node.Attributes["connstr"].Value;
+            }
+            catch (Exception ex)
+            {
+                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
+                    .Error("error when parsing config file.", ex);
+                Environment.Exit(Environment.ExitCode);
+            }
+        }
+
         private BaseObjectState AddObject(
             IDictionary<NodeId, IList<IReference>> externalReferences, uint idx, string name)
         {
@@ -210,23 +234,13 @@ namespace Quickstarts.EmptyServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
+                    .Error("ReadDB()", ex);
             }
         }
 
         private void tianyu_init(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            try
-            {
-                string config_path = AppDomain.CurrentDomain.BaseDirectory + "tianyu_opc.conf";
-                connStr = System.IO.File.ReadAllText(config_path);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Environment.Exit(Environment.ExitCode);
-            }
-
             try
             {
                 OleDbConnection conn = new OleDbConnection(connStr);
@@ -277,7 +291,8 @@ namespace Quickstarts.EmptyServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType)
+                    .Error("tianyu_init()", ex);
             }
         }
 
@@ -294,59 +309,60 @@ namespace Quickstarts.EmptyServer
         {
             lock (Lock)
             {
-                BaseObjectState trigger = new BaseObjectState(null);
+                //BaseObjectState trigger = new BaseObjectState(null);
 
-                trigger.NodeId = new NodeId(1, NamespaceIndex);
-                trigger.BrowseName = new QualifiedName("Trigger", NamespaceIndex);
-                trigger.DisplayName = trigger.BrowseName.Name;
-                trigger.TypeDefinitionId = ObjectTypeIds.BaseObjectType; 
+                //trigger.NodeId = new NodeId(1, NamespaceIndex);
+                //trigger.BrowseName = new QualifiedName("Trigger", NamespaceIndex);
+                //trigger.DisplayName = trigger.BrowseName.Name;
+                //trigger.TypeDefinitionId = ObjectTypeIds.BaseObjectType; 
 
-                // ensure trigger can be found via the server object. 
-                IList<IReference> references = null;
+                //// ensure trigger can be found via the server object. 
+                //IList<IReference> references = null;
 
-                if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out references))
-                {
-                    externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
-                }
+                //if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out references))
+                //{
+                //    externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
+                //}
 
-                trigger.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, trigger.NodeId));
+                //trigger.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+                //references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, trigger.NodeId));
 
-                PropertyState property = new PropertyState(trigger);
+                //PropertyState property = new PropertyState(trigger);
 
-                property.NodeId = new NodeId(2, NamespaceIndex);
-                property.BrowseName = new QualifiedName("Matrix", NamespaceIndex);
-                property.DisplayName = property.BrowseName.Name;
-                property.TypeDefinitionId = VariableTypeIds.PropertyType;
-                property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-                property.DataType = DataTypeIds.Int32;
-                property.ValueRank = ValueRanks.TwoDimensions;
-                property.ArrayDimensions = new ReadOnlyList<uint>(new uint[] { 2, 2 });
+                //property.NodeId = new NodeId(2, NamespaceIndex);
+                //property.BrowseName = new QualifiedName("Matrix", NamespaceIndex);
+                //property.DisplayName = property.BrowseName.Name;
+                //property.TypeDefinitionId = VariableTypeIds.PropertyType;
+                //property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                //property.DataType = DataTypeIds.Int32;
+                //property.ValueRank = ValueRanks.TwoDimensions;
+                //property.ArrayDimensions = new ReadOnlyList<uint>(new uint[] { 2, 2 });
 
-                trigger.AddChild(property);
+                //trigger.AddChild(property);
 
-                // save in dictionary. 
-                AddPredefinedNode(SystemContext, trigger);
+                //// save in dictionary. 
+                //AddPredefinedNode(SystemContext, trigger);
 
-                ReferenceTypeState referenceType = new ReferenceTypeState();
+                //ReferenceTypeState referenceType = new ReferenceTypeState();
 
-                referenceType.NodeId = new NodeId(3, NamespaceIndex);
-                referenceType.BrowseName = new QualifiedName("IsTriggerSource", NamespaceIndex);
-                referenceType.DisplayName = referenceType.BrowseName.Name;
-                referenceType.InverseName = new LocalizedText("IsSourceOfTrigger");
-                referenceType.SuperTypeId = ReferenceTypeIds.NonHierarchicalReferences;
+                //referenceType.NodeId = new NodeId(3, NamespaceIndex);
+                //referenceType.BrowseName = new QualifiedName("IsTriggerSource", NamespaceIndex);
+                //referenceType.DisplayName = referenceType.BrowseName.Name;
+                //referenceType.InverseName = new LocalizedText("IsSourceOfTrigger");
+                //referenceType.SuperTypeId = ReferenceTypeIds.NonHierarchicalReferences;
 
-                if (!externalReferences.TryGetValue(ObjectIds.Server, out references))
-                {
-                    externalReferences[ObjectIds.Server] = references = new List<IReference>();
-                }
+                //if (!externalReferences.TryGetValue(ObjectIds.Server, out references))
+                //{
+                //    externalReferences[ObjectIds.Server] = references = new List<IReference>();
+                //}
 
-                trigger.AddReference(referenceType.NodeId, false, ObjectIds.Server);
-                references.Add(new NodeStateReference(referenceType.NodeId, true, trigger.NodeId));
+                //trigger.AddReference(referenceType.NodeId, false, ObjectIds.Server);
+                //references.Add(new NodeStateReference(referenceType.NodeId, true, trigger.NodeId));
 
-                // save in dictionary. 
-                AddPredefinedNode(SystemContext, referenceType);
+                //// save in dictionary. 
+                //AddPredefinedNode(SystemContext, referenceType);
 
+                InitConfig();
                 tianyu_init(externalReferences);
             } 
         }
@@ -424,6 +440,7 @@ namespace Quickstarts.EmptyServer
 
         #region Private Fields
         private EmptyServerConfiguration m_configuration;
+        private static readonly string CONF_PATH = AppDomain.CurrentDomain.BaseDirectory + "tianyu_opc.xml";
         private String connStr = @"Provider=SQLOLEDB;Data Source = 127.0.0.1;User ID = sa;Password=123456;Initial Catalog = ehs";
         private Dictionary<uint, Dictionary<string, object>> equipments =
             new Dictionary<uint, Dictionary<string, object>>();
