@@ -218,6 +218,17 @@ namespace Quickstarts.EmptyServer
         {
             try
             {
+                string config_path = AppDomain.CurrentDomain.BaseDirectory + "tianyu_opc.conf";
+                connStr = System.IO.File.ReadAllText(config_path);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                Environment.Exit(Environment.ExitCode);
+            }
+
+            try
+            {
                 OleDbConnection conn = new OleDbConnection(connStr);
                 conn.Open();
                 OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
@@ -413,7 +424,7 @@ namespace Quickstarts.EmptyServer
 
         #region Private Fields
         private EmptyServerConfiguration m_configuration;
-        private String connStr = @"Provider=SQLOLEDB;Data Source = 192.168.56.128;User ID = sa;Password=123456;Initial Catalog = ehs";
+        private String connStr = @"Provider=SQLOLEDB;Data Source = 127.0.0.1;User ID = sa;Password=123456;Initial Catalog = ehs";
         private Dictionary<uint, Dictionary<string, object>> equipments =
             new Dictionary<uint, Dictionary<string, object>>();
         private object equipments_lock;
