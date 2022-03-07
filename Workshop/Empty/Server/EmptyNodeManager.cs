@@ -116,19 +116,15 @@ namespace Quickstarts.EmptyServer
             }
         }
 
-        private BaseObjectState AddObject(
-            IDictionary<NodeId, IList<IReference>> externalReferences, uint idx, string name)
+        private BaseObjectState AddObject(uint idx, string name)
         {
             BaseObjectState equipment = new BaseObjectState(null);
             equipment.NodeId = new NodeId(idx, NamespaceIndex);
             equipment.BrowseName = new QualifiedName(name, NamespaceIndex);
             equipment.DisplayName = equipment.BrowseName.Name;
             equipment.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
-            IList<IReference> references = null;
-            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out references))
-                externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
-            equipment.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, equipment.NodeId));
+            equipment.AddReference(ReferenceTypeIds.Organizes, true, tianyu.NodeId);
+            tianyu.AddReference(ReferenceTypeIds.Organizes, false, equipment.NodeId);
             return equipment;
         }
 
@@ -164,7 +160,7 @@ namespace Quickstarts.EmptyServer
             return ServiceResult.Good;
         }
 
-        private void QueryEquipment(IDictionary<NodeId, IList<IReference>> externalReferences)
+        private void QueryEquipment()
         {
             try
             {
@@ -196,7 +192,7 @@ namespace Quickstarts.EmptyServer
                     {
                         lock (Lock)
                         {
-                            BaseObjectState baseObj = AddObject(externalReferences, idx, dr["Name"].ToString());
+                            BaseObjectState baseObj = AddObject(idx, dr["Name"].ToString());
                             AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
                             AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
                             AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
@@ -346,6 +342,7 @@ namespace Quickstarts.EmptyServer
             {
                 while (true)
                 {
+                    QueryEquipment();
                     QueryRecord();
                     QueryAbnormity();
                     System.Threading.Thread.Sleep(queryInterval * 1000);
@@ -424,7 +421,22 @@ namespace Quickstarts.EmptyServer
                 //AddPredefinedNode(SystemContext, referenceType);
 
                 InitConfig();
-                QueryEquipment(externalReferences);
+
+                tianyu = new FolderState(null);
+                tianyu.NodeId = new NodeId(0, NamespaceIndex);
+                tianyu.BrowseName = new QualifiedName("tianyu", NamespaceIndex);
+                tianyu.DisplayName = tianyu.BrowseName.Name;
+                tianyu.TypeDefinitionId = ObjectTypeIds.FolderType;
+                // ensure tianyu can be found via the server object. 
+                IList<IReference> references = null;
+                if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out references))
+                {
+                    externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
+                }
+                tianyu.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
+                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, tianyu.NodeId));
+                AddPredefinedNode(SystemContext, tianyu);
+
                 equipments_thread = new Thread(() => { ReadDb(); });
                 equipments_thread.Start();
             } 
@@ -510,6 +522,7 @@ namespace Quickstarts.EmptyServer
             new Dictionary<uint, Dictionary<string, object>>();
         private object equipments_lock;
         private Thread equipments_thread;
+        private FolderState tianyu = new FolderState(null);
         #endregion
     }
 }
