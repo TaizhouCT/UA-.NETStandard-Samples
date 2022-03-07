@@ -142,7 +142,7 @@ namespace Quickstarts.EmptyServer
             property.Value = value;
             property.ValueRank = ValueRanks.Scalar;
             //property.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            property.OnReadValue = OnReadRecord;
+            //property.OnReadValue = OnReadRecord;
             baseObj.AddChild(property);
             return property;
         }
@@ -181,12 +181,44 @@ namespace Quickstarts.EmptyServer
 
                     if (equipments.ContainsKey(idx))
                     {
-                        equipments[idx]["Address"] = dr["Address"];
-                        equipments[idx]["MinValue"] = dr["MinValue"];
-                        equipments[idx]["MaxValue"] = dr["MaxValue"];
-                        equipments[idx]["UpperLimit"] = dr["UpperLimit"];
-                        equipments[idx]["LowerLimit"] = dr["LowerLimit"];
-                        equipments[idx]["State"] = dr["State"];
+                        BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
+                        PropertyState prop;
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("Address", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["Address"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("MinValue", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["MinValue"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("MaxValue", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["MaxValue"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("UpperLimit", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["UpperLimit"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("LowerLimit", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["LowerLimit"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
+
+                        prop = (PropertyState)baseObj.FindChild(
+                            SystemContext, new QualifiedName("State", baseObj.BrowseName.NamespaceIndex));
+                        prop.Value = dr["State"];
+                        prop.Timestamp = DateTime.Now;
+                        prop.ClearChangeMasks(SystemContext, false);
                     }
                     else
                     {
@@ -205,21 +237,25 @@ namespace Quickstarts.EmptyServer
                             AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
                             AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
                             AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
+                            AddProperty(baseObj, idx, "AbnormityBeginTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                            AddProperty(baseObj, idx, "AbnormityEndTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
                             AddPredefinedNode(SystemContext, baseObj);
 
                             Dictionary<string, object> equipment = new Dictionary<string, object>();
-                            equipment.Add("ID", dr["ID"]);
-                            equipment.Add("Name", dr["Name"]);
-                            equipment.Add("Address", dr["Address"]);
-                            equipment.Add("MinValue", dr["MinValue"]);
-                            equipment.Add("MaxValue", dr["MaxValue"]);
-                            equipment.Add("UpperLimit", dr["UpperLimit"]);
-                            equipment.Add("LowerLimit", dr["LowerLimit"]);
-                            equipment.Add("State", dr["State"]);
-                            equipment.Add("Value", 0);
-                            equipment.Add("TimeStamp", new DateTime(1, 1, 1));
-                            equipment.Add("AbnormityStatus", "");
-                            equipment.Add("AbnormityValue", 0);
+                            //equipment.Add("ID", dr["ID"]);
+                            //equipment.Add("Name", dr["Name"]);
+                            //equipment.Add("Address", dr["Address"]);
+                            //equipment.Add("MinValue", dr["MinValue"]);
+                            //equipment.Add("MaxValue", dr["MaxValue"]);
+                            //equipment.Add("UpperLimit", dr["UpperLimit"]);
+                            //equipment.Add("LowerLimit", dr["LowerLimit"]);
+                            //equipment.Add("State", dr["State"]);
+                            //equipment.Add("Value", 0);
+                            //equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                            //equipment.Add("AbnormityStatus", "");
+                            //equipment.Add("AbnormityValue", 0);
+                            //equipment.Add("AbnormityBeginTime", new DateTime(1, 1, 1));
+                            //equipment.Add("AbnormityEndTime", new DateTime(1, 1, 1));
                             equipment.Add("_backend_node", baseObj);
                             equipments.Add(idx, equipment);
                         }
@@ -257,22 +293,22 @@ namespace Quickstarts.EmptyServer
                     uint idx = uint.Parse(dr["EquipmentID"].ToString());
                     if (equipments.ContainsKey(idx))
                     {
-                        equipments[idx]["Value"] = dr["clValue"];
-                        equipments[idx]["TimeStamp"] = dr["clTime"];
-
                         lock (Lock)
                         {
                             BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
-                            PropertyState value = (PropertyState)baseObj.FindChild(
+                            PropertyState prop;
+
+                            prop = (PropertyState)baseObj.FindChild(
                                 SystemContext, new QualifiedName("Value", baseObj.BrowseName.NamespaceIndex));
-                            value.Value = dr["clValue"];
-                            value.Timestamp = DateTime.Now;
-                            value.ClearChangeMasks(SystemContext, false);
-                            PropertyState ts = (PropertyState)baseObj.FindChild(
+                            prop.Value = dr["clValue"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
+
+                            prop = (PropertyState)baseObj.FindChild(
                                 SystemContext, new QualifiedName("TimeStamp", baseObj.BrowseName.NamespaceIndex));
-                            ts.Value = dr["clTime"];
-                            ts.Timestamp = DateTime.Now;
-                            ts.ClearChangeMasks(SystemContext, false);
+                            prop.Value = dr["clTime"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
                         }
                     }
                 }
@@ -307,22 +343,34 @@ namespace Quickstarts.EmptyServer
                     uint idx = uint.Parse(dr["EquipmentID"].ToString());
                     if (equipments.ContainsKey(idx))
                     {
-                        equipments[idx]["AbnormityStatus"] = dr["Status"];
-                        equipments[idx]["AbnormityValue"] = dr["MaxValue"];
-
                         lock (Lock)
                         {
                             BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
-                            PropertyState status = (PropertyState)baseObj.FindChild(
+                            PropertyState prop;
+
+                            prop = (PropertyState)baseObj.FindChild(
                                 SystemContext, new QualifiedName("AbnormityStatus", baseObj.BrowseName.NamespaceIndex));
-                            status.Value = dr["Status"];
-                            status.Timestamp = DateTime.Now;
-                            status.ClearChangeMasks(SystemContext, false);
-                            PropertyState value = (PropertyState)baseObj.FindChild(
+                            prop.Value = dr["Status"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
+
+                            prop = (PropertyState)baseObj.FindChild(
                                 SystemContext, new QualifiedName("AbnormityValue", baseObj.BrowseName.NamespaceIndex));
-                            value.Value = dr["MaxValue"];
-                            value.Timestamp = DateTime.Now;
-                            value.ClearChangeMasks(SystemContext, false);
+                            prop.Value = dr["MaxValue"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
+
+                            prop = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("AbnormityBeginTime", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["BeginTime"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
+
+                            prop = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("AbnormityEndTime", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["EndTime"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
                         }
                     }
                 }
