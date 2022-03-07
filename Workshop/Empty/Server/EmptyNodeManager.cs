@@ -142,6 +142,7 @@ namespace Quickstarts.EmptyServer
             property.Value = value;
             property.ValueRank = ValueRanks.Scalar;
             //property.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            //property.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             //property.OnReadValue = OnReadRecord;
             baseObj.AddChild(property);
             return property;
@@ -471,7 +472,7 @@ namespace Quickstarts.EmptyServer
                 InitConfig();
 
                 tianyu = new FolderState(null);
-                tianyu.NodeId = new NodeId(0, NamespaceIndex);
+                tianyu.NodeId = new NodeId(1, NamespaceIndex);
                 tianyu.BrowseName = new QualifiedName("tianyu", NamespaceIndex);
                 tianyu.DisplayName = tianyu.BrowseName.Name;
                 tianyu.TypeDefinitionId = ObjectTypeIds.FolderType;
