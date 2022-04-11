@@ -67,13 +67,13 @@ namespace Quickstarts.EmptyServer
             }
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected override void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 // TBD
@@ -163,225 +163,231 @@ namespace Quickstarts.EmptyServer
 
         private void QueryEquipment()
         {
-            try
+            using (OleDbConnection conn = new OleDbConnection(connStr))
             {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Start query Equipment!");
-
-                OleDbConnection conn = new OleDbConnection(connStr);
-                conn.Open();
-                OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
-                DataSet ds = new DataSet();
-                adapter.Fill(ds);
-                conn.Close();
-
-                DataTableReader dr = ds.CreateDataReader();
-                while (dr.Read())
+                try
                 {
-                    uint idx = uint.Parse(dr["ID"].ToString());
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Start query Equipment!");
 
-                    if (equipments.ContainsKey(idx))
+                    conn.Open();
+                    OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM tblEquipment", conn);
+                    DataSet ds = new DataSet();
+                    adapter.Fill(ds);
+                    conn.Close();
+
+                    DataTableReader dr = ds.CreateDataReader();
+                    while (dr.Read())
                     {
-                        BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
-                        PropertyState prop;
+                        uint idx = uint.Parse(dr["ID"].ToString());
 
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("Address", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["Address"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("MinValue", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["MinValue"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("MaxValue", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["MaxValue"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("UpperLimit", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["UpperLimit"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("LowerLimit", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["LowerLimit"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-
-                        prop = (PropertyState)baseObj.FindChild(
-                            SystemContext, new QualifiedName("State", baseObj.BrowseName.NamespaceIndex));
-                        prop.Value = dr["State"];
-                        prop.Timestamp = DateTime.Now;
-                        prop.ClearChangeMasks(SystemContext, false);
-                    }
-                    else
-                    {
-                        lock (Lock)
-                        {
-                            BaseObjectState baseObj = AddObject(idx, dr["Name"].ToString());
-                            AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
-                            AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
-                            AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
-                            AddProperty(baseObj, idx, "MinValue", DataTypeIds.Double, dr["MinValue"]);
-                            AddProperty(baseObj, idx, "MaxValue", DataTypeIds.Double, dr["MaxValue"]);
-                            AddProperty(baseObj, idx, "UpperLimit", DataTypeIds.Double, dr["UpperLimit"]);
-                            AddProperty(baseObj, idx, "LowerLimit", DataTypeIds.Double, dr["LowerLimit"]);
-                            AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
-                            AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
-                            AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
-                            AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
-                            AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
-                            AddProperty(baseObj, idx, "AbnormityBeginTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
-                            AddProperty(baseObj, idx, "AbnormityEndTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
-                            AddPredefinedNode(SystemContext, baseObj);
-
-                            Dictionary<string, object> equipment = new Dictionary<string, object>();
-                            //equipment.Add("ID", dr["ID"]);
-                            //equipment.Add("Name", dr["Name"]);
-                            //equipment.Add("Address", dr["Address"]);
-                            //equipment.Add("MinValue", dr["MinValue"]);
-                            //equipment.Add("MaxValue", dr["MaxValue"]);
-                            //equipment.Add("UpperLimit", dr["UpperLimit"]);
-                            //equipment.Add("LowerLimit", dr["LowerLimit"]);
-                            //equipment.Add("State", dr["State"]);
-                            //equipment.Add("Value", 0);
-                            //equipment.Add("TimeStamp", new DateTime(1, 1, 1));
-                            //equipment.Add("AbnormityStatus", "");
-                            //equipment.Add("AbnormityValue", 0);
-                            //equipment.Add("AbnormityBeginTime", new DateTime(1, 1, 1));
-                            //equipment.Add("AbnormityEndTime", new DateTime(1, 1, 1));
-                            equipment.Add("_backend_node", baseObj);
-                            equipments.Add(idx, equipment);
-                        }
-                    }
-                }
-
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Query equipment successed!");
-            }
-            catch (Exception ex)
-            {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
-                Environment.Exit(Environment.ExitCode);
-            }
-        }
-
-        private void QueryRecord()
-        {
-            try
-            {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Start query Record!");
-
-                OleDbConnection conn = new OleDbConnection(connStr);
-                conn.Open();
-                string sql = String.Format(
-                    "SELECT TOP 1000 * FROM tblRecord ORDER BY ID DESC");
-                OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                DataSet ds = new DataSet();
-                adapter.Fill(ds);
-                conn.Close();
-                DataTableReader dr = ds.CreateDataReader();
-                while (dr.Read())
-                {
-                    uint idx = uint.Parse(dr["EquipmentID"].ToString());
-                    if (equipments.ContainsKey(idx))
-                    {
-                        lock (Lock)
+                        if (equipments.ContainsKey(idx))
                         {
                             BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
                             PropertyState prop;
 
                             prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("Value", baseObj.BrowseName.NamespaceIndex));
-                            prop.Value = dr["clValue"];
+                                SystemContext, new QualifiedName("Address", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["Address"];
                             prop.Timestamp = DateTime.Now;
                             prop.ClearChangeMasks(SystemContext, false);
 
                             prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("TimeStamp", baseObj.BrowseName.NamespaceIndex));
-                            prop.Value = dr["clTime"];
-                            prop.Timestamp = DateTime.Now;
-                            prop.ClearChangeMasks(SystemContext, false);
-                        }
-                    }
-                }
-
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Query record successed!");
-            }
-            catch (Exception ex)
-            {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
-            }
-        }
-
-        private void QueryAbnormity()
-        {
-            try
-            {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Start Query Abnormity!");
-
-                OleDbConnection conn = new OleDbConnection(connStr);
-                conn.Open();
-                string sql = String.Format(
-                    "SELECT TOP 1000 * FROM tblAbnormity ORDER BY ID DESC");
-                OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
-                DataSet ds = new DataSet();
-                adapter.Fill(ds);
-                conn.Close();
-                DataTableReader dr = ds.CreateDataReader();
-                while (dr.Read())
-                {
-                    uint idx = uint.Parse(dr["EquipmentID"].ToString());
-                    if (equipments.ContainsKey(idx))
-                    {
-                        lock (Lock)
-                        {
-                            BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
-                            PropertyState prop;
-
-                            prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("AbnormityStatus", baseObj.BrowseName.NamespaceIndex));
-                            prop.Value = dr["Status"];
+                                SystemContext, new QualifiedName("MinValue", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["MinValue"];
                             prop.Timestamp = DateTime.Now;
                             prop.ClearChangeMasks(SystemContext, false);
 
                             prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("AbnormityValue", baseObj.BrowseName.NamespaceIndex));
+                                SystemContext, new QualifiedName("MaxValue", baseObj.BrowseName.NamespaceIndex));
                             prop.Value = dr["MaxValue"];
                             prop.Timestamp = DateTime.Now;
                             prop.ClearChangeMasks(SystemContext, false);
 
                             prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("AbnormityBeginTime", baseObj.BrowseName.NamespaceIndex));
-                            prop.Value = dr["BeginTime"];
+                                SystemContext, new QualifiedName("UpperLimit", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["UpperLimit"];
                             prop.Timestamp = DateTime.Now;
                             prop.ClearChangeMasks(SystemContext, false);
 
                             prop = (PropertyState)baseObj.FindChild(
-                                SystemContext, new QualifiedName("AbnormityEndTime", baseObj.BrowseName.NamespaceIndex));
-                            prop.Value = dr["EndTime"];
+                                SystemContext, new QualifiedName("LowerLimit", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["LowerLimit"];
+                            prop.Timestamp = DateTime.Now;
+                            prop.ClearChangeMasks(SystemContext, false);
+
+                            prop = (PropertyState)baseObj.FindChild(
+                                SystemContext, new QualifiedName("State", baseObj.BrowseName.NamespaceIndex));
+                            prop.Value = dr["State"];
                             prop.Timestamp = DateTime.Now;
                             prop.ClearChangeMasks(SystemContext, false);
                         }
-                    }
-                }
+                        else
+                        {
+                            lock (Lock)
+                            {
+                                BaseObjectState baseObj = AddObject(idx, dr["Name"].ToString());
+                                AddProperty(baseObj, idx, "ID", DataTypeIds.UInt32, dr["ID"]);
+                                AddProperty(baseObj, idx, "Name", DataTypeIds.String, dr["Name"]);
+                                AddProperty(baseObj, idx, "Address", DataTypeIds.String, dr["Address"]);
+                                AddProperty(baseObj, idx, "MinValue", DataTypeIds.Double, dr["MinValue"]);
+                                AddProperty(baseObj, idx, "MaxValue", DataTypeIds.Double, dr["MaxValue"]);
+                                AddProperty(baseObj, idx, "UpperLimit", DataTypeIds.Double, dr["UpperLimit"]);
+                                AddProperty(baseObj, idx, "LowerLimit", DataTypeIds.Double, dr["LowerLimit"]);
+                                AddProperty(baseObj, idx, "State", DataTypeIds.Int32, dr["State"]);
+                                AddProperty(baseObj, idx, "Value", DataTypeIds.Double, 0);
+                                AddProperty(baseObj, idx, "TimeStamp", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                                AddProperty(baseObj, idx, "AbnormityStatus", DataTypeIds.String, "");
+                                AddProperty(baseObj, idx, "AbnormityValue", DataTypeIds.Double, 0);
+                                AddProperty(baseObj, idx, "AbnormityBeginTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                                AddProperty(baseObj, idx, "AbnormityEndTime", DataTypeIds.DateTime, new DateTime(1, 1, 1));
+                                AddPredefinedNode(SystemContext, baseObj);
 
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
-                    .Info("Query Abnormity successed!");
+                                Dictionary<string, object> equipment = new Dictionary<string, object>();
+                                //equipment.Add("ID", dr["ID"]);
+                                //equipment.Add("Name", dr["Name"]);
+                                //equipment.Add("Address", dr["Address"]);
+                                //equipment.Add("MinValue", dr["MinValue"]);
+                                //equipment.Add("MaxValue", dr["MaxValue"]);
+                                //equipment.Add("UpperLimit", dr["UpperLimit"]);
+                                //equipment.Add("LowerLimit", dr["LowerLimit"]);
+                                //equipment.Add("State", dr["State"]);
+                                //equipment.Add("Value", 0);
+                                //equipment.Add("TimeStamp", new DateTime(1, 1, 1));
+                                //equipment.Add("AbnormityStatus", "");
+                                //equipment.Add("AbnormityValue", 0);
+                                //equipment.Add("AbnormityBeginTime", new DateTime(1, 1, 1));
+                                //equipment.Add("AbnormityEndTime", new DateTime(1, 1, 1));
+                                equipment.Add("_backend_node", baseObj);
+                                equipments.Add(idx, equipment);
+                            }
+                        }
+                    }
+
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Query equipment successed!");
+                }
+                catch (Exception ex)
+                {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                    //Environment.Exit(Environment.ExitCode);
+                }
             }
-            catch (Exception ex)
+        }
+
+        private void QueryRecord()
+        {
+            using (OleDbConnection conn = new OleDbConnection(connStr))
             {
-                log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                try
+                {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Start query Record!");
+
+                    conn.Open();
+                    string sql = String.Format(
+                        "SELECT TOP 1000 * FROM tblRecord ORDER BY ID DESC");
+                    OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                    DataSet ds = new DataSet();
+                    adapter.Fill(ds);
+                    conn.Close();
+                    DataTableReader dr = ds.CreateDataReader();
+                    while (dr.Read())
+                    {
+                        uint idx = uint.Parse(dr["EquipmentID"].ToString());
+                        if (equipments.ContainsKey(idx))
+                        {
+                            lock (Lock)
+                            {
+                                BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
+                                PropertyState prop;
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("Value", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["clValue"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("TimeStamp", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["clTime"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+                            }
+                        }
+                    }
+
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Query record successed!");
+                }
+                catch (Exception ex)
+                {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                }
+            }
+        }
+
+        private void QueryAbnormity()
+        {
+            using (OleDbConnection conn = new OleDbConnection(connStr))
+            {
+                try
+                {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Start Query Abnormity!");
+
+                    conn.Open();
+                    string sql = String.Format(
+                        "SELECT TOP 1000 * FROM tblAbnormity ORDER BY ID DESC");
+                    OleDbDataAdapter adapter = new OleDbDataAdapter(sql, conn);
+                    DataSet ds = new DataSet();
+                    adapter.Fill(ds);
+                    conn.Close();
+                    DataTableReader dr = ds.CreateDataReader();
+                    while (dr.Read())
+                    {
+                        uint idx = uint.Parse(dr["EquipmentID"].ToString());
+                        if (equipments.ContainsKey(idx))
+                        {
+                            lock (Lock)
+                            {
+                                BaseObjectState baseObj = (BaseObjectState)equipments[idx]["_backend_node"];
+                                PropertyState prop;
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("AbnormityStatus", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["Status"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("AbnormityValue", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["MaxValue"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("AbnormityBeginTime", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["BeginTime"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+
+                                prop = (PropertyState)baseObj.FindChild(
+                                    SystemContext, new QualifiedName("AbnormityEndTime", baseObj.BrowseName.NamespaceIndex));
+                                prop.Value = dr["EndTime"];
+                                prop.Timestamp = DateTime.Now;
+                                prop.ClearChangeMasks(SystemContext, false);
+                            }
+                        }
+                    }
+
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType)
+                        .Info("Query Abnormity successed!");
+                }
+                catch (Exception ex)
+                {
+                    log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType).Error(ex);
+                }
             }
         }
 
@@ -488,7 +494,7 @@ namespace Quickstarts.EmptyServer
 
                 equipments_thread = new Thread(() => { ReadDb(); });
                 equipments_thread.Start();
-            } 
+            }
         }
 
         /// <summary>
@@ -530,7 +536,7 @@ namespace Quickstarts.EmptyServer
                 handle.Validated = true;
 
                 return handle;
-            } 
+            }
         }
 
         /// <summary>
@@ -552,7 +558,7 @@ namespace Quickstarts.EmptyServer
             {
                 return handle.Node;
             }
-            
+
             // TBD
 
             return null;
